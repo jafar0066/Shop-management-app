@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#14532d">
+<meta name="description" content="Offline inventory, sales and profit tracking for a small shop.">
+<link rel="manifest" href="manifest.json">
+<title>Shop Manager</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#17211b;background:#f4f7f4}
+*{box-sizing:border-box}body{margin:0}header{background:#14532d;color:#fff;padding:18px 16px 14px;position:sticky;top:0;z-index:2}
+h1{font-size:1.35rem;margin:0 0 4px}header p{margin:0;font-size:.88rem;opacity:.9}
+nav{display:flex;gap:6px;padding:10px;background:#fff;overflow:auto;border-bottom:1px solid #d9e2db;position:sticky;top:76px;z-index:2}
+nav button{white-space:nowrap;border:0;border-radius:9px;padding:10px 12px;background:#e8efe9;color:#17452a;font-weight:650}
+nav button.active{background:#14532d;color:white}
+main{padding:14px;max-width:760px;margin:auto}.panel{background:#fff;border:1px solid #dfe7e0;border-radius:14px;padding:15px;margin-bottom:13px;box-shadow:0 2px 7px #102b1708}
+h2{font-size:1.1rem;margin:0 0 12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:.88rem;font-weight:650;margin-bottom:5px}input,select{width:100%;padding:11px;border:1px solid #bdcabe;border-radius:9px;font:inherit;background:white;color:#17211b;margin-bottom:10px}
+button.primary{background:#166534;color:#fff;border:0;border-radius:9px;padding:12px 14px;font:inherit;font-weight:700;width:100%}
+button.secondary{background:#e6eee8;color:#164b2c;border:0;border-radius:8px;padding:9px 11px;font:inherit;font-weight:650}
+button.danger{background:#fee2e2;color:#991b1b;border:0;border-radius:8px;padding:8px 10px;font:inherit}
+.statgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{background:#f0f7f1;border-radius:10px;padding:12px}.stat small{display:block;color:#536458}.stat strong{display:block;font-size:1.12rem;margin-top:4px;overflow-wrap:anywhere}
+.item{padding:12px 0;border-bottom:1px solid #e8eee9}.item:last-child{border-bottom:0}.itemtop{display:flex;gap:8px;justify-content:space-between;align-items:flex-start}.muted{color:#607064;font-size:.88rem}.warn{color:#a13b00;font-weight:750}.good{color:#166534;font-weight:750}.empty{color:#6b786e;text-align:center;padding:18px 4px}
+.notice{border-radius:9px;background:#fff7df;color:#744c00;padding:10px;margin-bottom:10px;font-size:.9rem}.small{font-size:.82rem}.hidden{display:none!important}
+footer{text-align:center;color:#6b786e;font-size:.8rem;padding:12px 20px 28px}
+@media(min-width:560px){.statgrid{grid-template-columns:repeat(4,1fr)}}
+</style>
+</head>
+<body>
+<header><h1>Shop Manager</h1><p>Inventory • Sales • Profit reports · ₦ Nigerian naira</p></header>
+<nav>
+<button class="active" data-tab="dashboard">Overview</button>
+<button data-tab="inventory">Inventory</button>
+<button data-tab="sale">Record sale</button>
+<button data-tab="reports">Reports</button>
+<button data-tab="backup">Backup</button>
+</nav>
+<main>
+<section id="dashboard" class="tab">
+<div id="lowAlert"></div>
+<div class="panel"><h2>Today's summary</h2><div class="statgrid">
+<div class="stat"><small>Sales today</small><strong id="todaySales">₦0</strong></div>
+<div class="stat"><small>Gross profit today</small><strong id="todayProfit">₦0</strong></div>
+<div class="stat"><small>Products listed</small><strong id="productCount">0</strong></div>
+<div class="stat"><small>Low-stock items</small><strong id="lowCount">0</strong></div>
+</div></div>
+<div class="panel"><h2>Recent sales</h2><div id="recentSales"></div></div>
+</section>
+<section id="inventory" class="tab hidden">
+<div class="panel"><h2>Add a product</h2>
+<form id="productForm">
+<label for="pname">Product name</label><input id="pname" required maxlength="80" placeholder="e.g. Rice 1kg">
+<div class="grid"><div><label for="pcost">Cost price (₦)</label><input id="pcost" type="number" min="0" step="0.01" required placeholder="What you paid"></div>
+<div><label for="psell">Selling price (₦)</label><input id="psell" type="number" min="0" step="0.01" required placeholder="Customer price"></div>
+<div><label for="pstock">Opening stock</label><input id="pstock" type="number" min="0" step="1" required value="0"></div>
+<div><label for="plow">Low-stock alert at</label><input id="plow" type="number" min="0" step="1" required value="5"></div></div>
+<button class="primary">Save product</button></form></div>
+<div class="panel"><h2>Products in stock</h2><div id="productList"></div></div>
+</section>
+<section id="sale" class="tab hidden">
+<div class="panel"><h2>Record a sale</h2><form id="saleForm">
+<label for="sproduct">Product</label><select id="sproduct" required></select>
+<div class="grid"><div><label for="sqty">Quantity sold</label><input id="sqty" type="number" min="1" step="1" required value="1"></div>
+<div><label for="sprice">Selling price per item (₦)</label><input id="sprice" type="number" min="0" step="0.01" required></div></div>
+<p id="saleStock" class="muted"></p><button class="primary">Save sale and deduct stock</button></form>
+<p class="muted small">The sale saves the cost and selling price at the time of sale, so later price changes won't rewrite old profit reports.</p></div>
+</section>
+<section id="reports" class="tab hidden">
+<div class="panel"><h2>Sales and gross profit reports</h2>
+<label for="period">Report period</label><select id="period"><option value="day">Today</option><option value="week">Last 7 days</option><option value="month">This month</option><option value="all">All recorded sales</option></select>
+<div class="statgrid">
+<div class="stat"><small>Sales revenue</small><strong id="rSales">₦0</strong></div>
+<div class="stat"><small>Cost of goods sold</small><strong id="rCost">₦0</strong></div>
+<div class="stat"><small>Gross profit</small><strong id="rProfit">₦0</strong></div>
+<div class="stat"><small>Items sold</small><strong id="rQty">0</strong></div>
+</div><p class="muted small">Gross profit = sales revenue − cost of goods sold. This is before rent, electricity, transport and other operating expenses.</p></div>
+<div class="panel"><h2>Sales in this period</h2><div id="reportSales"></div></div>
+</section>
+<section id="backup" class="tab hidden">
+<div class="panel"><h2>Protect your shop records</h2>
+<p>Products and sales are stored on this device. Export a backup regularly, especially before changing phones or reinstalling the app.</p>
+<button id="exportBtn" class="primary" type="button">Download backup file</button>
+<hr style="border:0;border-top:1px solid #e1e8e2;margin:18px 0">
+<label for="importFile">Restore a previous backup</label><input id="importFile" type="file" accept="application/json">
+<button id="importBtn" class="secondary" type="button">Restore selected backup</button>
+<p class="notice">Restoring a backup replaces the current records. Export a backup of your current records first if you need them.</p>
+</div></section>
+</main>
+<footer>Shop Manager · Data stays on this device unless you export a backup.</footer>
+<script>
+const KEY='shop-manager-data-v1';
+let db={products:[],sales:[]};
+const $=id=>document.getElementById(id);
+const money=n=>'₦'+Number(n||0).toLocaleString('en-NG',{minimumFractionDigits:2,maximumFractionDigits:2});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function load(){try{const v=JSON.parse(localStorage.getItem(KEY)||'{}');db={products:Array.isArray(v.products)?v.products:[],sales:Array.isArray(v.sales)?v.sales:[]}}catch(e){db={products:[],sales:[]}}}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));render()}
+function startOfToday(){const d=new Date();d.setHours(0,0,0,0);return d.getTime()}
+function inPeriod(ts,p){const d=new Date(ts),now=new Date();if(p==='day')return ts>=startOfToday();if(p==='week'){const x=new Date();x.setDate(x.getDate()-6);x.setHours(0,0,0,0);return ts>=x.getTime()}if(p==='month')return d.getFullYear()===now.getFullYear()&&d.getMonth()===now.getMonth();return true}
+function sumSales(sales){return sales.reduce((a,s)=>({revenue:a.revenue+s.qty*s.price,cost:a.cost+s.qty*s.cost,qty:a.qty+s.qty}),{revenue:0,cost:0,qty:0})}
+function render(){
+ const today=db.sales.filter(s=>inPeriod(s.time,'day')),t=sumSales(today);
+ $('todaySales').textContent=money(t.revenue);$('todayProfit').textContent=money(t.revenue-t.cost);
+ $('productCount').textContent=db.products.length;
+ const lows=db.products.filter(p=>p.stock<=p.low);$('lowCount').textContent=lows.length;
+ $('lowAlert').innerHTML=lows.length?'<div class="notice"><b>Low-stock warning:</b> '+lows.map(p=>esc(p.name)+' ('+p.stock+' left)').join(', ')+'</div>':'';
+ $('productList').innerHTML=db.products.length?db.products.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<div class="item"><div class="itemtop"><div><b>${esc(p.name)}</b><div class="muted">Cost ${money(p.cost)} · Sell ${money(p.sell)}</div><div class="${p.stock<=p.low?'warn':'good'}">${p.stock} in stock · alert at ${p.low}</div></div><button class="secondary" onclick="adjustStock('${p.id}')">Adjust stock</button></div></div>`).join(''):'<div class="empty">No products yet. Add your first product above.</div>';
+ $('sproduct').innerHTML=db.products.length?db.products.map(p=>`<option value="${p.id}">${esc(p.name)} — ${p.stock} available</option>`).join(''):'<option value="">Add a product first</option>';
+ updateSalePrice();
+ $('recentSales').innerHTML=db.sales.length?db.sales.slice().sort((a,b)=>b.time-a.time).slice(0,6).map(s=>saleHtml(s)).join(''):'<div class="empty">No sales recorded yet.</div>';
+ const r=db.sales.filter(s=>inPeriod(s.time,$('period').value)),z=sumSales(r);
+ $('rSales').textContent=money(z.revenue);$('rCost').textContent=money(z.cost);$('rProfit').textContent=money(z.revenue-z.cost);$('rQty').textContent=z.qty;
+ $('reportSales').innerHTML=r.length?r.slice().sort((a,b)=>b.time-a.time).map(s=>saleHtml(s)).join(''):'<div class="empty">No sales in this period.</div>';
+}
+function saleHtml(s){return `<div class="item"><b>${esc(s.name)}</b><div>${s.qty} × ${money(s.price)} = <b>${money(s.qty*s.price)}</b></div><div class="muted">${new Date(s.time).toLocaleString()} · Gross profit ${money(s.qty*(s.price-s.cost))}</div></div>`}
+function updateSalePrice(){const p=db.products.find(x=>x.id===$('sproduct').value);if(p){$('sprice').value=p.sell;$('saleStock').textContent='Available stock: '+p.stock+' · Cost per item: '+money(p.cost)}else{$('sprice').value='';$('saleStock').textContent='Add a product in Inventory before recording a sale.'}}
+$('productForm').addEventListener('submit',e=>{e.preventDefault();const name=$('pname').value.trim(),cost=+$('pcost').value,sell=+$('psell').value,stock=+$('pstock').value,low=+$('plow').value;if(!name||![cost,sell,stock,low].every(Number.isFinite)||cost<0||sell<0||stock<0||low<0)return alert('Check the product details and enter valid non-negative numbers.');db.products.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),name,cost,sell,stock,low});e.target.reset();$('pstock').value=0;$('plow').value=5;save();alert('Product saved.')});
+$('sproduct').addEventListener('change',updateSalePrice);
+$('saleForm').addEventListener('submit',e=>{e.preventDefault();const p=db.products.find(x=>x.id===$('sproduct').value),qty=+$('sqty').value,price=+$('sprice').value;if(!p)return alert('Add a product first.');if(!Number.isInteger(qty)||qty<1)return alert('Quantity must be a whole number above zero.');if(qty>p.stock)return alert('Not enough stock. Available quantity: '+p.stock);if(!Number.isFinite(price)||price<0)return alert('Enter a valid selling price.');db.sales.push({id:String(Date.now()),productId:p.id,name:p.name,qty,price,cost:p.cost,time:Date.now()});p.stock-=qty;save();$('sqty').value=1;alert('Sale saved. Stock has been updated.')});
+function adjustStock(id){const p=db.products.find(x=>x.id===id);if(!p)return;const val=prompt('Enter the NEW total stock quantity for '+p.name+'. Current stock: '+p.stock,p.stock);if(val===null)return;const n=Number(val);if(!Number.isInteger(n)||n<0)return alert('Enter a whole number zero or greater.');p.stock=n;save()}
+$('period').addEventListener('change',render);
+document.querySelectorAll('nav button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('active',x===b));document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('hidden',x.id!==b.dataset.tab));if(b.dataset.tab==='sale')updateSalePrice();render()}));
+$('exportBtn').addEventListener('click',()=>{const blob=new Blob([JSON.stringify({...db,exportedAt:new Date().toISOString(),app:'Shop Manager'},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='shop-manager-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click();URL.revokeObjectURL(a.href)});
+$('importBtn').addEventListener('click',()=>{const f=$('importFile').files[0];if(!f)return alert('Choose a backup file first.');const r=new FileReader();r.onload=()=>{try{const v=JSON.parse(r.result);if(!Array.isArray(v.products)||!Array.isArray(v.sales))throw Error();if(!confirm('Replace all current products and sales with this backup?'))return;db={products:v.products,sales:v.sales};save();alert('Backup restored.')}catch(e){alert('That file does not look like a valid Shop Manager backup.')}};r.readAsText(f)});
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+load();render();
+</script>
+</body></html>
